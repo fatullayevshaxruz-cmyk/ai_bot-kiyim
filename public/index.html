@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="description" content="ONE23 — o'z uslubingni tanla. Erkaklar uchun premium kiyimlar." />
+    <title>ONE23 — o'z uslubingni tanla</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <a class="brand" href="/?view=catalog">
+          <span class="brand__mark">1</span>
+          <span class="brand__text">
+            <span class="brand__name">ONE23</span>
+            <span class="brand__sub">MEN’S COLLECTION</span>
+          </span>
+        </a>
+        <label class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="Qidirish..." aria-label="Qidirish" /></label>
+        <button class="icon-btn" id="cartShortcut" type="button" aria-label="Savatcha">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 8h12l-1 11H7L6 8Zm3 0V6a3 3 0 0 1 6 0v2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+          </svg>
+          <span class="badge hidden" id="cartCount">0</span>
+        </button>
+      </header>
+
+      <main class="view" id="viewCatalog">
+        <section class="hero">
+          <div class="hero__copy"><p class="hero__eyebrow">ONE23 · 26/27 COLLECTION</p>
+          <h1 class="hero__title">O‘z uslubingni<br /><em>tanla.</em></h1>
+          <p class="hero__text">Har kuni uchun puxta tanlangan erkaklar garderobi. Soddalik — bu ham xarakter.</p>
+          <button class="btn btn--primary btn--small" data-scroll-catalog>Kolleksiyani ko‘rish ↘</button></div>
+          <div class="hero__visual"><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=85" alt="ONE23 yangi kolleksiyasi"/><span>26 / 27<br/>NEW SEASON</span></div>
+        </section>
+        <section class="stories-section"><div class="section-head"><div><p class="section-kicker">ONE23 JOURNAL</p><h2>Hikoyalar</h2></div><span>Yangi kolleksiya</span></div><div class="stories" id="stories"></div></section>
+        <section class="category-section"><div class="section-head"><div><p class="section-kicker">O‘ZINGGA MOSINI TOP</p><h2>Kategoriyalar</h2></div></div><nav class="chips" id="chips" aria-label="Kategoriyalar"></nav></section>
+        <div class="section-head arrivals-head"><div><p class="section-kicker">YANGI MAVSUM</p><h2>Yangi tushganlar</h2></div><span>ONE23 / 26—27</span></div>
+        <div class="grid" id="grid"></div>
+        <p class="empty hidden" id="catalogEmpty">Mahsulotlar topilmadi.</p>
+        <footer class="brand-footer" id="about"><div><strong>ONE23</strong><p>Shahar ritmida yaratilgan zamonaviy erkaklar garderobi. Sifat, qulaylik va o‘ziga xos uslub — har bir detalda.</p></div><div class="brand-footer__links"><a href="#about">Biz haqimizda</a><a href="#about">Yetkazib berish</a><a href="#about">Aloqa</a><a href="https://instagram.com/" target="_blank" rel="noopener">Instagram ↗</a></div><small>© 2026 ONE23 · Tashkent, Uzbekistan</small></footer>
+      </main>
+
+      <main class="view hidden" id="viewCart"></main>
+      <main class="view hidden" id="viewCheckout"></main>
+      <main class="view hidden" id="viewOrders"></main>
+      <main class="view hidden" id="viewSuccess"></main>
+
+      <nav class="tabbar" id="tabbar">
+        <button type="button" class="tab is-active" data-nav="catalog">
+          <span class="tab__icon">🛍</span><span>Katalog</span>
+        </button>
+        <button type="button" class="tab" data-nav="cart">
+          <span class="tab__icon">🛒</span><span>Savatcha</span>
+          <span class="tab__badge hidden" id="tabCartCount">0</span>
+        </button>
+        <button type="button" class="tab" data-nav="orders">
+          <span class="tab__icon">📦</span><span>Buyurtmalar</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="sheet" id="sheet" aria-hidden="true">
+      <div class="sheet__backdrop" data-close="sheet"></div>
+      <div class="sheet__panel" id="sheetPanel" role="dialog" aria-modal="true"></div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div class="loader" id="loader"><span class="spinner"></span></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

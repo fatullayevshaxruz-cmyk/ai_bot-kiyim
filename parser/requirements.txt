@@ -1,0 +1,2 @@
+# Telegram kanal tarixini o'qish uchun foydalanuvchi sessiyasi (bot tokeni yetarli emas).
+telethon>=1.34,<2

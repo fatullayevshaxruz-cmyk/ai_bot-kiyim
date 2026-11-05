@@ -1,0 +1,10 @@
+# Maxfiy: API kalitlari va Telegram sessiyasi
+.env
+data/
+*.session
+*.session-journal
+
+# Python
+__pycache__/
+*.pyc
+.venv/

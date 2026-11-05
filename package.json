@@ -1,0 +1,20 @@
+{
+  "name": "one23-menswear-shop-bot",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ONE23 — Telegram Mini App premium menswear shop (catalog, cart, checkout, admin)",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/seed.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "grammy": "^1.46.0"
+  }
+}

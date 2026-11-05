@@ -1,12 +1,12 @@
-# Standart Uzbekistan — Telegram Web App do‘kon boti
+# ONE23 — Telegram Mini App do‘kon boti
 
-Instagram (`@standartuzbekistan`) auditoriyasi uchun matnsiz, tugmalar bilan ishlaydigan
+ONE23 brendi uchun matnsiz, tugmalar bilan ishlaydigan
 to‘liq e-komersiya boti: Telegram **Web App** ichida katalog, mahsulot galereyasi,
 o‘lcham tanlash, savatcha, 4 qadamli checkout, buyurtmalar tarixi, admin panel va
 kanalga avtomatik buyurtma yuborish.
 
 ```
-Instagram bio ──► t.me/standartuzbekistan_bot?start=ig
+Instagram bio ──► Telegram bot havolasi (`BOT_USERNAME`)
                         │
                         ▼
               /start: brend salomlashuv + tugmalar
