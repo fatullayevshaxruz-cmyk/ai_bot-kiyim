@@ -9,7 +9,7 @@ import {
   listPaymentTransactions,
   setOrderPaymentStatus,
   setOrderStatus,
-  updatePaymentTransaction,
+  transitionPaymentTransaction,
 } from './db.js'
 import { notifyPaymentReceived } from './orders.js'
 
@@ -19,6 +19,19 @@ const safeEqual = (a, b) => {
   const left = Buffer.from(String(a ?? ''))
   const right = Buffer.from(String(b ?? ''))
   return left.length === right.length && crypto.timingSafeEqual(left, right)
+}
+
+// Click submits so‘mda (ixtiyoriy 2 kasr raqami), Payme esa tiyinda.
+// Float taqqoslashdagi yumshoq tolerans kichik summa tafovutlarini o‘tkazib yubormasin.
+const clickAmountMatches = (value, orderAmount) => {
+  const raw = String(value ?? '')
+  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return false
+  const [whole, fraction = ''] = raw.split('.')
+  try {
+    return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0')) === BigInt(orderAmount) * 100n
+  } catch {
+    return false
+  }
 }
 
 // Xabar yuborish javobni kutdirmaydi va xatosi to‘lov javobini buzmaydi.
@@ -73,8 +86,7 @@ function validateClick(params, { complete = false } = {}) {
   if (!order || order.payment !== 'click') {
     return { failure: clickReply(params, -5, 'Buyurtma topilmadi') }
   }
-  const amount = Number(params.amount)
-  if (!Number.isFinite(amount) || Math.abs(amount - order.total) >= 1) {
+  if (!clickAmountMatches(params.amount, order.total)) {
     return { failure: clickReply(params, -6, 'Summa buyurtmaga mos emas') }
   }
   const externalId = String(params.click_trans_id ?? '')
@@ -86,6 +98,9 @@ export function handleClickPrepare(params = {}) {
   const checked = validateClick(params, { complete: false })
   if (checked.failure) return checked.failure
   const { order, externalId } = checked
+  if (order.status === 'cancelled' || order.paymentStatus === 'cancelled') {
+    return clickReply(params, -5, 'Buyurtma bekor qilingan')
+  }
   if (order.paymentStatus === 'paid') return clickReply(params, -4, 'Buyurtma allaqachon to‘langan')
 
   let transaction = getPaymentTransaction('click', externalId)
@@ -93,13 +108,23 @@ export function handleClickPrepare(params = {}) {
     return clickReply(params, -5, 'Tranzaksiya boshqa buyurtmaga tegishli')
   }
   if (!transaction) {
-    transaction = createPaymentTransaction({
-      orderId: order.id,
-      provider: 'click',
-      externalId,
-      amount: order.total,
-      state: 0,
-    })
+    const active = findActivePaymentTransaction('click', order.id)
+    if (active) return clickReply(params, -4, 'Buyurtma uchun to‘lov jarayoni boshlangan', active.id)
+    try {
+      transaction = createPaymentTransaction({
+        orderId: order.id,
+        provider: 'click',
+        externalId,
+        amount: order.total,
+        state: 0,
+      })
+    } catch (error) {
+      if (error.code !== 'ERR_SQLITE_CONSTRAINT_UNIQUE') throw error
+      transaction = getPaymentTransaction('click', externalId)
+      if (transaction?.orderId === order.id) return clickReply(params, 0, 'Success', transaction.id)
+      const active = findActivePaymentTransaction('click', order.id)
+      return clickReply(params, -4, 'Buyurtma uchun boshqa to‘lov jarayoni faol', active?.id ?? null)
+    }
   }
   return clickReply(params, 0, 'Success', transaction.id)
 }
@@ -114,18 +139,52 @@ export function handleClickComplete(params = {}, { notify = notifyPaymentReceive
     return clickReply(params, -9, 'Tranzaksiya topilmadi', Number(params.merchant_prepare_id) || null)
   }
 
-  // Click to‘lovni bekor qilgan bo‘lsa (error < 0) tranzaksiyani yopamiz.
-  if (Number(params.error ?? 0) < 0) {
-    updatePaymentTransaction(transaction.id, { state: -1, cancelTime: Date.now(), reason: Number(params.error) })
-    return clickReply(params, 0, 'To‘lov bekor qilindi', transaction.id)
+  if (String(params.merchant_prepare_id ?? '') !== String(transaction.id)) {
+    return clickReply(params, -9, 'Tayyorlangan tranzaksiya mos emas', transaction.id)
+  }
+  if (transaction.amount !== order.total) {
+    return clickReply(params, -6, 'Tranzaksiya summasi mos emas', transaction.id)
   }
 
   if (transaction.state === 1) {
+    // Jarayon to‘lov yozuvi saqlangan zahoti uzilib qolgan bo‘lsa, provider retry
+    // kelganda order holatini tiklaymiz.
+    if (order.paymentStatus !== 'paid') queueNotify(notify, markPaid(order.id))
     return clickReply(params, 0, 'Success', transaction.id)
   }
+  if (transaction.state < 0) {
+    return Number(params.error ?? 0) < 0
+      ? clickReply(params, 0, 'To‘lov bekor qilingan', transaction.id)
+      : clickReply(params, -9, 'Tranzaksiya bekor qilingan', transaction.id)
+  }
+  // Bekor qilish faqat hali yakunlanmagan prepare holatidan o‘tsin.
+  if (Number(params.error ?? 0) < 0) {
+    const cancelled = transitionPaymentTransaction(transaction.id, 0, {
+      state: -1,
+      cancelTime: Date.now(),
+      reason: Number(params.error),
+    })
+    if (!cancelled.changed && cancelled.transaction?.state === 1) {
+      if (cancelled.order?.paymentStatus !== 'paid') queueNotify(notify, markPaid(order.id))
+      return clickReply(params, 0, 'To‘lov muvaffaqiyatli yakunlangan', transaction.id)
+    }
+    return clickReply(params, 0, 'To‘lov bekor qilindi', transaction.id)
+  }
+  if (order.status === 'cancelled' || order.paymentStatus === 'cancelled') {
+    return clickReply(params, -5, 'Buyurtma bekor qilingan', transaction.id)
+  }
+  if (order.paymentStatus === 'paid') {
+    return clickReply(params, -4, 'Buyurtma allaqachon to‘langan', transaction.id)
+  }
 
-  updatePaymentTransaction(transaction.id, { state: 1, performTime: Date.now() })
-  queueNotify(notify, markPaid(order.id))
+  const completed = transitionPaymentTransaction(transaction.id, 0, { state: 1, performTime: Date.now() }, 'paid')
+  if (completed.changed) {
+    queueNotify(notify, completed.order)
+  } else if (completed.transaction?.state === 1 && order.paymentStatus !== 'paid') {
+    queueNotify(notify, markPaid(order.id))
+  } else if (completed.transaction?.state !== 1) {
+    return clickReply(params, -9, 'Tranzaksiyani yakunlab bo‘lmadi', transaction.id)
+  }
   return clickReply(params, 0, 'Success', transaction.id)
 }
 
@@ -153,7 +212,9 @@ function findPaymeOrder(params) {
 
 function paymeCheckOrder(order, amount) {
   if (!order || order.payment !== 'payme') return paymeError(-31050, 'Buyurtma topilmadi', ACCOUNT_FIELD)
-  if (order.status === 'cancelled') return paymeError(-31050, 'Buyurtma bekor qilingan', ACCOUNT_FIELD)
+  if (order.status === 'cancelled' || order.paymentStatus === 'cancelled') {
+    return paymeError(-31050, 'Buyurtma bekor qilingan', ACCOUNT_FIELD)
+  }
   if (order.paymentStatus === 'paid') return paymeError(-31051, 'Buyurtma allaqachon to‘langan', ACCOUNT_FIELD)
   if (!Number.isFinite(amount) || amount !== order.total * 100) return paymeError(-31051, 'Summa noto‘g‘ri', 'amount')
   return null
@@ -181,57 +242,103 @@ export function handlePayme(payload = {}, authHeader = '', { notify = notifyPaym
   }
 
   if (method === 'CreateTransaction') {
-    if (!externalId) return paymeError(-31005, 'Tranzaksiya ID yo‘q')
+    if (!/^[A-Za-z0-9_-]{24}$/.test(externalId)) return paymeError(-31005, 'Tranzaksiya ID noto‘g‘ri')
+    const requestedAmount = Number(params.amount)
+    const requestedTime = Number(params.time)
+    if (!Number.isSafeInteger(requestedAmount) || requestedAmount <= 0) return paymeError(-31001, 'Summa noto‘g‘ri')
+    if (!Number.isSafeInteger(requestedTime) || requestedTime <= 0 || requestedTime > Date.now() + 5 * 60 * 1000) {
+      return paymeError(-31008, 'Tranzaksiya vaqti noto‘g‘ri')
+    }
     const existing = getPaymentTransaction('payme', externalId)
     if (existing) {
       const existingOrder = getOrder(existing.orderId)
       if (!existingOrder || existingOrder.code !== String(params?.account?.[ACCOUNT_FIELD] ?? '')) {
         return paymeError(-31050, 'Tranzaksiya boshqa buyurtmaga tegishli', ACCOUNT_FIELD)
       }
+      if (requestedAmount !== existing.amount * 100 || requestedTime !== existing.createTime) {
+        return paymeError(-31008, 'Tranzaksiya parametrlari avvalgi so‘rovga mos emas')
+      }
       return { result: paymeTransactionResult(existing) }
     }
 
+    if (Date.now() - requestedTime > 12 * 60 * 60 * 1000) {
+      return paymeError(-31008, 'Tranzaksiya muddati tugagan')
+    }
+
     const order = findPaymeOrder(params)
-    const problem = paymeCheckOrder(order, Number(params.amount))
+    const problem = paymeCheckOrder(order, requestedAmount)
     if (problem) return problem
     if (findActivePaymentTransaction('payme', order.id)) {
       return paymeError(-31008, 'Buyurtma bo‘yicha faol tranzaksiya mavjud')
     }
 
-    const transaction = createPaymentTransaction({
-      orderId: order.id,
-      provider: 'payme',
-      externalId,
-      amount: order.total,
-      state: 1,
-      createTime: Number(params.time) || Date.now(),
-    })
+    let transaction
+    try {
+      transaction = createPaymentTransaction({
+        orderId: order.id,
+        provider: 'payme',
+        externalId,
+        amount: order.total,
+        state: 1,
+        createTime: requestedTime,
+      })
+    } catch (error) {
+      if (error.code !== 'ERR_SQLITE_CONSTRAINT_UNIQUE') throw error
+      const sameId = getPaymentTransaction('payme', externalId)
+      if (sameId) {
+        const sameOrder = getOrder(sameId.orderId)
+        if (
+          sameOrder?.code === String(params?.account?.[ACCOUNT_FIELD] ?? '') &&
+          requestedAmount === sameId.amount * 100 &&
+          requestedTime === sameId.createTime
+        ) return { result: paymeTransactionResult(sameId) }
+      }
+      return paymeError(-31008, 'Buyurtma bo‘yicha faol tranzaksiya mavjud')
+    }
     return { result: paymeTransactionResult(transaction) }
   }
 
   if (method === 'PerformTransaction') {
     const transaction = getPaymentTransaction('payme', externalId)
     if (!transaction) return paymeError(-31003, 'Tranzaksiya topilmadi')
-    if (transaction.state === 2) return { result: paymeTransactionResult(transaction) }
-    if (transaction.state !== 1) return paymeError(-31008, 'Tranzaksiyani bajarib bo‘lmaydi')
+    if (transaction.state !== 1 && transaction.state !== 2) return paymeError(-31008, 'Tranzaksiyani bajarib bo‘lmaydi')
 
-    const performed = updatePaymentTransaction(transaction.id, { state: 2, performTime: Date.now() })
-    queueNotify(notify, markPaid(performed.orderId))
-    return { result: paymeTransactionResult(performed) }
+    const order = getOrder(transaction.orderId)
+    if (!order || order.payment !== 'payme' || order.total !== transaction.amount) {
+      return paymeError(-31008, 'Tranzaksiya buyurtma ma’lumotlariga mos emas')
+    }
+    if (order.status === 'cancelled' || order.paymentStatus === 'cancelled') {
+      return paymeError(-31008, 'Buyurtma bekor qilingan')
+    }
+
+    if (transaction.state === 2) {
+      if (order.paymentStatus !== 'paid') queueNotify(notify, markPaid(order.id))
+      return { result: paymeTransactionResult(transaction) }
+    }
+
+    const completed = transitionPaymentTransaction(transaction.id, 1, { state: 2, performTime: Date.now() }, 'paid')
+    if (completed.changed || completed.transaction?.state === 2) {
+      if (completed.changed) queueNotify(notify, completed.order)
+      else if (order.paymentStatus !== 'paid') queueNotify(notify, markPaid(order.id))
+      return { result: paymeTransactionResult(completed.transaction) }
+    }
+    return paymeError(-31008, 'Tranzaksiyani bajarib bo‘lmadi')
   }
 
   if (method === 'CancelTransaction') {
     const transaction = getPaymentTransaction('payme', externalId)
     if (!transaction) return paymeError(-31003, 'Tranzaksiya topilmadi')
-    if (transaction.state < 0) return { result: paymeTransactionResult(transaction) }
+    if (transaction.state < 0) {
+      setOrderPaymentStatus(transaction.orderId, 'cancelled')
+      return { result: paymeTransactionResult(transaction) }
+    }
 
-    const cancelled = updatePaymentTransaction(transaction.id, {
+    const cancelled = transitionPaymentTransaction(transaction.id, transaction.state, {
       state: transaction.state === 2 ? -2 : -1,
       cancelTime: Date.now(),
       reason: Number(params.reason) || 0,
-    })
-    setOrderPaymentStatus(cancelled.orderId, 'cancelled')
-    return { result: paymeTransactionResult(cancelled) }
+    }, 'cancelled')
+    return { result: paymeTransactionResult(cancelled.transaction) }
   }
 
   if (method === 'CheckTransaction') {

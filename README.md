@@ -238,6 +238,14 @@ Yoki `pm2 start src/index.js --name standart-shop`.
 - Admin callback’lari `ADMIN_IDS` bo‘yicha tekshiriladi.
 - Buyurtma yaratishga rate limit (12 soatiga 1 foydalanuvchi) qo‘yilgan.
 - Telegram’dan yuklangan rasmlar token ko‘rsatilmasdan `/uploads/...` orqali beriladi.
+- Click imzosi constant-time taqqoslanadi; summa tiyin aniqligida solishtiriladi, `complete` esa mos `prepare` ID talab qiladi.
+- Har buyurtmada provayder bo‘yicha bitta faol tranzaksiya bo‘ladi; to‘lov/bekor qilish holati SQLite tranzaksiyasida atomik yangilanadi.
+- Payme Basic auth constant-time tekshiriladi; tranzaksiya ID, vaqt, summa va takroriy callback parametrlari validatsiya qilinadi.
+- Click va Payme callback’lari aniq IP allowlist bilan cheklanadi; ro‘yxat bo‘lmasa online to‘lov checkout’da o‘chiq qoladi. `CLICK_CALLBACK_IPS` va `PAYME_CALLBACK_IPS` qiymatlarini faqat tegishli provayderdan tasdiqlang.
+- JSON callback hajmi 32 KB, Click form callback hajmi 8 KB bilan cheklangan.
+- Production’da HTTPS reverse proxy ishlating, Node portini internetga bevosita ochmang, to‘lov kalitlarini faqat serverdagi `.env`/secret store’da saqlang va shubha bo‘lsa provayder kabinetidan kalitni almashtiring.
+- Click imzosida `error` maydoni imzolanmaydi; callback IP allowlisti to‘g‘ri provayder manzillari bilan sozlanishi va HTTPS orqali qabul qilinishi shart.
+- Ushbu himoyalar xavfni kamaytiradi, lekin “100% xavfsizlik” kafolati bermaydi. Click imzosi provayder protokoliga muvofiq MD5; xavfsizlik HTTPS, server/firewall sozlamalari va maxfiy kalitlarni himoyalashga ham bog‘liq.
 
 ## 11. Muammoli holatlar
 

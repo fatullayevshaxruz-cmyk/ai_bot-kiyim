@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { isIP } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -23,6 +24,8 @@ const idList = (value) =>
     .split(',')
     .map((entry) => Number(entry.trim()))
     .filter((entry) => Number.isFinite(entry) && entry !== 0)
+const ipList = (value) =>
+  [...new Set(text(value).split(',').map((entry) => entry.trim()).filter((entry) => isIP(entry) > 0))]
 
 const publicUrl = text(process.env.PUBLIC_URL).replace(/\/+$/, '')
 const supportUsername = text(process.env.SUPPORT_USERNAME).replace(/^@/, '')
@@ -68,16 +71,23 @@ export const config = {
       serviceId: text(process.env.CLICK_SERVICE_ID),
       merchantId: text(process.env.CLICK_MERCHANT_ID),
       secretKey: text(process.env.CLICK_SECRET_KEY),
+      callbackIps: ipList(process.env.CLICK_CALLBACK_IPS),
     },
-    payme: { merchantId: text(process.env.PAYME_MERCHANT_ID), key: text(process.env.PAYME_KEY) },
+    payme: {
+      merchantId: text(process.env.PAYME_MERCHANT_ID),
+      key: text(process.env.PAYME_KEY),
+      callbackIps: ipList(process.env.PAYME_CALLBACK_IPS),
+    },
   },
 }
 
-// Onlayn to‘lov faqat kabinet kalitlari to‘liq bo‘lsa avtomatik tasdiqlanadi.
+// Onlayn to‘lov kalitlar bilan birga provayder IP allowlisti berilgandagina yoqiladi.
 export const clickReady = Boolean(
-  config.payments.click.serviceId && config.payments.click.merchantId && config.payments.click.secretKey,
+  config.payments.click.serviceId && config.payments.click.merchantId && config.payments.click.secretKey && config.payments.click.callbackIps.length,
 )
-export const paymeReady = Boolean(config.payments.payme.merchantId && config.payments.payme.key)
+export const paymeReady = Boolean(
+  config.payments.payme.merchantId && config.payments.payme.key && config.payments.payme.callbackIps.length,
+)
 
 export const isPublicUrlReady = /^https:\/\//i.test(config.publicUrl)
 
@@ -89,8 +99,14 @@ export function assertConfig() {
   if ((config.payments.click.serviceId || config.payments.click.merchantId) && !config.payments.click.secretKey) {
     problems.push('CLICK_SECRET_KEY bo‘sh — Click callback imzosi tekshirilmaydi')
   }
+  if ((config.payments.click.serviceId || config.payments.click.merchantId) && !config.payments.click.callbackIps.length) {
+    problems.push('CLICK_CALLBACK_IPS bo‘sh — Click callback’lari va to‘lovlar o‘chiq qoladi')
+  }
   if (config.payments.payme.merchantId && !config.payments.payme.key) {
     problems.push('PAYME_KEY bo‘sh — Payme callback’i ishlamaydi')
+  }
+  if (config.payments.payme.merchantId && !config.payments.payme.callbackIps.length) {
+    problems.push('PAYME_CALLBACK_IPS bo‘sh — Payme callback’lari va to‘lovlar o‘chiq qoladi')
   }
   return problems
 }

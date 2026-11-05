@@ -94,6 +94,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_items_order ON order_items(order_id);
   CREATE INDEX IF NOT EXISTS idx_products_cat ON products(category_id);
   CREATE INDEX IF NOT EXISTS idx_payments_order ON payment_transactions(order_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_one_active_order
+    ON payment_transactions(provider, order_id)
+    WHERE (provider = 'click' AND state = 0) OR (provider = 'payme' AND state = 1);
 `)
 
 // Eski bazalarda ustun yo‘q — ma’lumotni yo‘qotmasdan qo‘shamiz.
@@ -463,10 +466,60 @@ export function updatePaymentTransaction(id, patch = {}) {
   return mapTransaction(db.prepare('SELECT * FROM payment_transactions WHERE id = ?').get(Number(id)))
 }
 
+// Bir xil callback bir vaqtda kelganda tranzaksiya faqat kutilgan holatdan bir marta o‘tsin.
+export function transitionPaymentTransaction(id, expectedState, patch = {}, paymentStatus = null) {
+  const fields = []
+  const values = []
+  const set = (column, value) => {
+    fields.push(`${column} = ?`)
+    values.push(value)
+  }
+  if (patch.state !== undefined) set('state', Number(patch.state))
+  if (patch.createTime !== undefined) set('create_time', Number(patch.createTime) || 0)
+  if (patch.performTime !== undefined) set('perform_time', Number(patch.performTime) || 0)
+  if (patch.cancelTime !== undefined) set('cancel_time', Number(patch.cancelTime) || 0)
+  if (patch.reason !== undefined) set('reason', patch.reason === null ? null : Number(patch.reason))
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    const currentRow = db.prepare('SELECT * FROM payment_transactions WHERE id = ?').get(Number(id))
+    const current = mapTransaction(currentRow)
+    if (!current || current.state !== Number(expectedState) || !fields.length) {
+      db.exec('COMMIT')
+      return { changed: false, transaction: current, order: current ? getOrder(current.orderId) : null }
+    }
+    values.push(Number(id), Number(expectedState))
+    const result = db
+      .prepare(`UPDATE payment_transactions SET ${fields.join(', ')}, updated_at = datetime('now') WHERE id = ? AND state = ?`)
+      .run(...values)
+    const changed = Number(result.changes) === 1
+    if (changed && paymentStatus === 'paid') {
+      db.prepare(
+        `UPDATE orders SET payment_status = 'paid',
+           status = CASE WHEN status = 'new' THEN 'confirmed' ELSE status END,
+           updated_at = datetime('now') WHERE id = ?`,
+      ).run(current.orderId)
+    } else if (changed && paymentStatus === 'cancelled') {
+      db.prepare("UPDATE orders SET payment_status = 'cancelled', updated_at = datetime('now') WHERE id = ?").run(current.orderId)
+    }
+    const transaction = mapTransaction(db.prepare('SELECT * FROM payment_transactions WHERE id = ?').get(Number(id)))
+    const order = changed ? getOrder(current.orderId) : current ? getOrder(current.orderId) : null
+    db.exec('COMMIT')
+    return { changed, transaction, order }
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
 export function findActivePaymentTransaction(provider, orderId) {
   return mapTransaction(
     db
-      .prepare('SELECT * FROM payment_transactions WHERE provider = ? AND order_id = ? AND state > 0 ORDER BY id DESC')
+      .prepare(
+        `SELECT * FROM payment_transactions
+         WHERE provider = ? AND order_id = ?
+           AND ((provider = 'click' AND state = 0) OR (provider = 'payme' AND state = 1))
+         ORDER BY id DESC`,
+      )
       .get(String(provider), Number(orderId)),
   )
 }

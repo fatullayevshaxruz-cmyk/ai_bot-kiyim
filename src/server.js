@@ -1,4 +1,5 @@
 import express from 'express'
+import { isIP } from 'node:net'
 import { clickReady, config, paymeReady } from './config.js'
 import { validateInitData } from './auth.js'
 import { getProduct, listCategories, listProducts, listUserOrders, upsertUser } from './db.js'
@@ -7,6 +8,20 @@ import { handleClickComplete, handleClickPrepare, handlePayme } from './payments
 import { bot } from './bot/instance.js'
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
+const normalizeIp = (value) => {
+  const ip = String(value ?? '').trim().replace(/^\[|\]$/g, '')
+  return ip.startsWith('::ffff:') && isIP(ip.slice(7)) === 4 ? ip.slice(7) : isIP(ip) ? ip.toLowerCase() : ''
+}
+
+// Cloudflare Tunnel/Caddy lokal loopback'dan ulansa, provayder IP'sini faqat shu
+// loopback ulanishidagi Cloudflare sarlavhasidan olamiz. Tashqi mijozning XFF'i ishonilmaydi.
+export function isPaymentCallbackIpAllowed(req, allowedIps = []) {
+  if (!Array.isArray(allowedIps) || allowedIps.length === 0) return false
+  const socketIp = normalizeIp(req.socket?.remoteAddress)
+  const viaLoopbackProxy = socketIp === '127.0.0.1' || socketIp === '::1'
+  const sourceIp = viaLoopbackProxy ? normalizeIp(req.get?.('cf-connecting-ip')) || socketIp : socketIp
+  return allowedIps.includes(sourceIp)
+}
 
 // Dev-rejim faqat haqiqiy lokal brauzerdan ishlaydi. Proksi sarlavhalari (X-Forwarded-*)
 // bo'lsa so'rov lokal hisoblanmaydi — aks holda tunnel orqali `X-Forwarded-Host: localhost`
@@ -69,7 +84,7 @@ function checkRateLimit(userId) {
 export function createServer() {
   const app = express()
   app.disable('x-powered-by')
-  app.use(express.json({ limit: '128kb' }))
+  app.use(express.json({ limit: '32kb', strict: true }))
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }))
 
@@ -138,13 +153,36 @@ export function createServer() {
 
   // Click SHOP-API va Payme Merchant API — tashqi to‘lov tizimlari chaqiradigan endpointlar.
   // Javob har doim 200 + JSON: provayder xatoni FAQAT `error` maydonidan o‘qiydi.
-  app.post('/click/prepare', express.urlencoded({ extended: false }), (req, res) => {
+  app.post('/click/prepare', express.urlencoded({ extended: false, limit: '8kb', parameterLimit: 32 }), (req, res) => {
+    if (!isPaymentCallbackIpAllowed(req, config.payments.click.callbackIps)) {
+      return res.json({
+        click_trans_id: req.body?.click_trans_id ?? null,
+        merchant_trans_id: req.body?.merchant_trans_id ?? null,
+        merchant_prepare_id: null,
+        merchant_confirm_id: null,
+        error: -1,
+        error_note: 'Callback IP ruxsat etilmagan',
+      })
+    }
     res.json(handleClickPrepare(req.body ?? {}))
   })
-  app.post('/click/complete', express.urlencoded({ extended: false }), (req, res) => {
+  app.post('/click/complete', express.urlencoded({ extended: false, limit: '8kb', parameterLimit: 32 }), (req, res) => {
+    if (!isPaymentCallbackIpAllowed(req, config.payments.click.callbackIps)) {
+      return res.json({
+        click_trans_id: req.body?.click_trans_id ?? null,
+        merchant_trans_id: req.body?.merchant_trans_id ?? null,
+        merchant_prepare_id: null,
+        merchant_confirm_id: null,
+        error: -1,
+        error_note: 'Callback IP ruxsat etilmagan',
+      })
+    }
     res.json(handleClickComplete(req.body ?? {}))
   })
   app.post('/payme', (req, res) => {
+    if (!isPaymentCallbackIpAllowed(req, config.payments.payme.callbackIps)) {
+      return res.json({ error: { code: -32504, message: 'Ruxsat yo‘q' } })
+    }
     res.json(handlePayme(req.body ?? {}, req.get('authorization') ?? ''))
   })
 

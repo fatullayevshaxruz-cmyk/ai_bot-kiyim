@@ -10,11 +10,14 @@ process.env.DB_FILE = path.join(tmpDir, 'test.db')
 process.env.CLICK_SERVICE_ID = '1111'
 process.env.CLICK_MERCHANT_ID = '2222'
 process.env.CLICK_SECRET_KEY = 'click-secret'
+process.env.CLICK_CALLBACK_IPS = '203.0.113.10'
 process.env.PAYME_MERCHANT_ID = 'payme-merchant'
 process.env.PAYME_KEY = 'payme-key'
+process.env.PAYME_CALLBACK_IPS = '198.51.100.8'
 
 const { clickSignature, handleClickComplete, handleClickPrepare, handlePayme } = await import('../src/payments.js')
 const { createOrder, getOrderByCode, getPaymentTransaction, upsertUser } = await import('../src/db.js')
+const { isPaymentCallbackIpAllowed } = await import('../src/server.js')
 
 const user = upsertUser({ id: 700001, first_name: 'Test', last_name: 'Mijoz' })
 
@@ -74,7 +77,9 @@ test('Click prepare imzo, service_id va summani tekshiradi', () => {
   assert.equal(handleClickPrepare({ ...params, sign_string: 'deadbeef' }).error, -1)
   assert.equal(handleClickPrepare({ ...params, service_id: '9999' }).error, -2)
   assert.equal(handleClickPrepare(signedClick(order, { amount: '1.00' })).error, -6)
+  assert.equal(handleClickPrepare(signedClick(order, { amount: `${order.total}.50` })).error, -6)
   assert.equal(handleClickPrepare(signedClick(order, { merchant_trans_id: 'SU-XX-000' })).error, -5)
+  assert.equal(handleClickPrepare(signedClick(order)).error, -4, 'ikkinchi faol Click to‘lovi ochilmasin')
 })
 
 test('Click complete buyurtmani to‘langan deb belgilaydi va idempotent', async () => {
@@ -106,6 +111,10 @@ test('Click complete buyurtmani to‘langan deb belgilaydi va idempotent', async
   assert.equal(paidOrder.status, 'confirmed')
   assert.equal(getPaymentTransaction('click', prepareParams.click_trans_id).state, 1)
 
+  const wrongPrepare = { ...completeParams, merchant_prepare_id: String(Number(prepared.merchant_prepare_id) + 1) }
+  wrongPrepare.sign_string = clickSignature(wrongPrepare, { complete: true })
+  assert.equal(handleClickComplete(wrongPrepare).error, -9, 'boshqa prepare ID bilan to‘lov yakunlanmasin')
+
   // Takroriy complete (retry) xato qaytarmaydi va ikkinchi marta xabar yubormaydi.
   const repeated = handleClickComplete(completeParams, { notify: async (paid) => notified.push(paid) })
   assert.equal(repeated.error, 0)
@@ -132,6 +141,12 @@ test('Click complete error < 0 bo‘lsa tranzaksiyani bekor qiladi', () => {
   assert.equal(response.error, 0)
   assert.equal(getPaymentTransaction('click', prepareParams.click_trans_id).state, -1)
   assert.equal(getOrderByCode(order.code).paymentStatus, 'pending')
+  const forgedSuccess = signedClick(
+    order,
+    { click_trans_id: prepareParams.click_trans_id, merchant_prepare_id: String(prepared.merchant_prepare_id) },
+    { complete: true },
+  )
+  assert.equal(handleClickComplete(forgedSuccess).error, -9, 'bekor qilingan Click tranzaksiyasi qayta to‘lanmasin')
 })
 
 test('Payme faqat to‘g‘ri Basic auth bilan ishlaydi', () => {
@@ -148,10 +163,29 @@ test('Payme faqat to‘g‘ri Basic auth bilan ishlaydi', () => {
   assert.equal(paymeCall('UnknownMethod', {}).error.code, -32601)
 })
 
+test('payment callback IP allowlist proxy sarlavhasini faqat loopback proksidan oladi', () => {
+  const allowed = ['203.0.113.10']
+  const request = (remoteAddress, headers = {}) => ({
+    socket: { remoteAddress },
+    get: (name) => headers[name.toLowerCase()] ?? undefined,
+  })
+  assert.equal(isPaymentCallbackIpAllowed(request('203.0.113.10'), allowed), true)
+  assert.equal(
+    isPaymentCallbackIpAllowed(request('8.8.8.8', { 'cf-connecting-ip': '203.0.113.10' }), allowed),
+    false,
+  )
+  assert.equal(
+    isPaymentCallbackIpAllowed(request('::ffff:127.0.0.1', { 'cf-connecting-ip': '203.0.113.10' }), allowed),
+    true,
+  )
+  assert.equal(isPaymentCallbackIpAllowed(request('127.0.0.1'), allowed), false)
+  assert.equal(isPaymentCallbackIpAllowed(request('203.0.113.10'), []), false)
+})
+
 test('Payme create → perform → cancel oqimi va idempotentlik', async () => {
   const order = makeOrder('payme')
   const createParams = {
-    id: `payme-${Date.now()}`,
+    id: `p${Date.now().toString(36).padStart(23, '0')}`,
     time: Date.now(),
     amount: order.total * 100,
     account: { order_id: order.code },
@@ -160,6 +194,13 @@ test('Payme create → perform → cancel oqimi va idempotentlik', async () => {
   const created = paymeCall('CreateTransaction', createParams)
   assert.equal(created.result.state, 1)
   assert.equal(paymeCall('CreateTransaction', createParams).result.transaction, created.result.transaction)
+  assert.equal(
+    paymeCall('CreateTransaction', { ...createParams, amount: createParams.amount + 100 }).error.code,
+    -31008,
+    'takroriy ID boshqa summa bilan qabul qilinmasin',
+  )
+  const competing = { ...createParams, id: `q${Date.now().toString(36).padStart(23, '0')}` }
+  assert.equal(paymeCall('CreateTransaction', competing).error.code, -31008, 'buyurtmada bitta faol Payme tranzaksiyasi bo‘lsin')
 
   const performed = paymeCall('PerformTransaction', { id: createParams.id })
   assert.equal(performed.result.state, 2)
@@ -175,6 +216,8 @@ test('Payme create → perform → cancel oqimi va idempotentlik', async () => {
   const cancelled = paymeCall('CancelTransaction', { id: createParams.id, reason: 5 })
   assert.equal(cancelled.result.state, -2)
   assert.equal(getOrderByCode(order.code).paymentStatus, 'cancelled')
+  const afterCancel = { ...createParams, id: `r${Date.now().toString(36).padStart(23, '0')}` }
+  assert.equal(paymeCall('CreateTransaction', afterCancel).error.code, -31050, 'bekor qilingan buyurtma qayta to‘lanmasin')
 
   const statement = paymeCall('GetStatement', { from: 0, to: Date.now() + 1000 })
   assert.ok(statement.result.transactions.some((item) => item.id === createParams.id))

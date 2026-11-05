@@ -1,5 +1,5 @@
 import { InlineKeyboard } from 'grammy'
-import { config } from './config.js'
+import { clickReady, config, paymeReady } from './config.js'
 import { createOrder, setUserPhone } from './db.js'
 import { money, statusLabel, PAYMENT_LABELS, DELIVERY_LABELS, dateTime } from './format.js'
 import { bot } from './bot/instance.js'
@@ -87,6 +87,8 @@ export function placeOrder(user, payload, productLookup) {
 
   const payment = String(payload?.payment ?? '');
   if (!PAYMENTS.has(payment)) throw new OrderError('To‘lov usulini tanlang.')
+  if (payment === 'click' && !clickReady) throw new OrderError('Click to‘lovi hozircha yoqilmagan.')
+  if (payment === 'payme' && !paymeReady) throw new OrderError('Payme to‘lovi hozircha yoqilmagan.')
 
   const itemsTotal = normalized.reduce((sum, item) => sum + item.price * item.qty, 0)
   const freeDelivery = config.freeDeliveryFrom > 0 && itemsTotal >= config.freeDeliveryFrom
