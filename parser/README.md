@@ -1,11 +1,11 @@
-# Kanal parseri — @standartuzbekistan → bot katalogi
+# Kanal parseri — ONE23 katalogi
 
 Telegram kanaldagi postlarni (rasm/video + caption) o‘qib, mahsulot kartochkasini yaratadi va
 botning bazasiga (`data/shop.db`) yozadi. Web App katalogi yangi mahsulotni **avtomatik** ko‘rsatadi —
 qo‘lda admin panel orqali qo‘shish shart emas.
 
 ```
-Telegram kanal (@standartuzbekistan)
+Telegram kanal (`CHANNEL` sozlamasi)
         │  Telethon (foydalanuvchi sessiyasi)
         ▼
   post / albom  ──►  caption tahlili: nom, narx, o‘lcham, kategoriya, tavsif
@@ -23,7 +23,6 @@ Shu sababli parser sizning Telegram akkauntingiz sessiyasi bilan ishlaydi va **k
 ## 2. O‘rnatish
 
 ```bash
-cd standart-shop
 python3 -m venv .venv && source .venv/bin/activate      # Python ≥ 3.9
 pip install -r parser/requirements.txt
 cp parser/.env.example parser/.env                      # qiymatlarni to‘ldiring
@@ -35,7 +34,7 @@ Ularni **hech kimga bermang** va git’ga qo‘shmang (`parser/.env` `.gitignore
 ```ini
 TELEGRAM_API_ID=12345678
 TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
-CHANNEL=@standartuzbekistan
+CHANNEL=@kanal_username
 ```
 
 ## 3. Birinchi kirish
@@ -45,7 +44,7 @@ python -m parser login
 ```
 
 Telefon raqami, Telegram kodi (va bo‘lsa 2FA paroli) so‘raladi. Shundan keyin
-`parser/data/standart.session` yaratiladi — bu **akkaunt kaliti**, uni ham saqlang.
+`parser/data/one23.session` yaratiladi — bu **akkaunt kaliti**, uni ham saqlang.
 
 ## 4. Ishlatish
 
@@ -103,14 +102,14 @@ Doimiy ishlashi uchun systemd:
 
 ```ini
 [Unit]
-Description=Standart shop kanal parseri
+Description=ONE23 shop kanal parseri
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/standart-shop
-ExecStart=/opt/standart-shop/.venv/bin/python -m parser watch
+WorkingDirectory=/opt/one23-shop
+ExecStart=/opt/one23-shop/.venv/bin/python -m parser watch
 Restart=always
-EnvironmentFile=/opt/standart-shop/parser/.env
+EnvironmentFile=/opt/one23-shop/parser/.env
 
 [Install]
 WantedBy=multi-user.target
@@ -195,7 +194,6 @@ Telegram’dan mustaqil yozilgan.
 ## 10. Testlar
 
 ```bash
-cd standart-shop
 PYTHONPATH=. python3 -m unittest discover -s parser/tests -t .
 ```
 

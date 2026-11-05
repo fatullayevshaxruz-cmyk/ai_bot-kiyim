@@ -32,10 +32,9 @@ Instagram bio ──► Telegram bot havolasi (`BOT_USERNAME`)
 ## 1. Tez ishga tushirish
 
 ```bash
-cd standart-shop
 npm install
 cp .env.example .env      # qiymatlarni to‘ldiring
-npm run seed              # 5 kategoriya, 11 demo mahsulot + brend muqovalar
+npm run seed              # 7 kategoriya, 12 demo mahsulot + ONE23 muqovalar
 npm start                 # bot polling + web server (port 8080)
 ```
 
@@ -159,7 +158,7 @@ o‘lcham ro‘yxatiga mosligi tekshiriladi.
 ## 7.1 Kanal parseri (Python)
 
 `parser/` — kanaldagi postlarni (rasm/video + caption) o‘qib, mahsulotni o‘sha bazaga yozadigan
-Telethon skripti. Manba kanal `parser/.env` dagi `CHANNEL` (hozir `-1002067707525`).
+Telethon skripti. Manba kanalni `parser/.env` dagi `CHANNEL` va `CHANNEL_USERNAME` orqali sozlang.
 `python -m parser watch` bilan: yangi post → katalogda darhol paydo bo‘ladi, o‘chirilgan post →
 katalogdan yo‘qoladi (yozuv bazada qoladi, `active = 0`). Batafsil: [`parser/README.md`](parser/README.md).
 
@@ -212,16 +211,16 @@ Bu rejim real-time emas — yangi postlar uchun buyruqni qayta ishga tushirish k
 
 ```bash
 # 1) serverda
-git clone <repo> && cd standart-shop && npm ci --omit=dev && npm run seed
+git clone <repo> && cd ai_bot-kiyim && npm ci --omit=dev && npm run seed
 # 2) systemd
 [Unit]
-Description=Standart shop bot
+Description=ONE23 shop bot
 After=network.target
 [Service]
-WorkingDirectory=/opt/standart-shop
+WorkingDirectory=/opt/one23-shop
 ExecStart=/usr/bin/node src/index.js
 Restart=always
-EnvironmentFile=/opt/standart-shop/.env
+EnvironmentFile=/opt/one23-shop/.env
 [Install]
 WantedBy=multi-user.target
 # 3) Caddy bilan HTTPS
@@ -230,7 +229,7 @@ shop.example.uz {
 }
 ```
 
-Yoki `pm2 start src/index.js --name standart-shop`.
+Yoki `pm2 start src/index.js --name one23-shop`.
 
 ## 10. Xavfsizlik
 

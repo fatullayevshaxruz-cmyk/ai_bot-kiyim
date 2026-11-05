@@ -74,9 +74,9 @@ class Settings:
     api_id: int = field(default_factory=lambda: _int("TELEGRAM_API_ID", 0))
     api_hash: str = field(default_factory=lambda: _text("TELEGRAM_API_HASH"))
     session: str = field(default_factory=lambda: _text("TELEGRAM_SESSION", "standart"))
-    channel: str = field(default_factory=lambda: _text("CHANNEL", "@standartuzbekistan"))
+    channel: str = field(default_factory=lambda: _text("CHANNEL"))
     # Ochiq kanal username'i — `web` rejimi uchun (API kalit/sessiya kerak emas).
-    web_channel: str = field(default_factory=lambda: _text("CHANNEL_USERNAME", "standartuzbekistan"))
+    web_channel: str = field(default_factory=lambda: _text("CHANNEL_USERNAME"))
 
     # --- Ma'lumotlar bazasi va media ---
     db_path: Path = field(default_factory=lambda: _path("SHOP_DB", PROJECT_DIR / "data" / "shop.db"))

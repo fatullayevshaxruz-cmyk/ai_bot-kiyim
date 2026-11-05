@@ -79,7 +79,7 @@ const products = [
   },
   {
     category: 'knitwear',
-    title: 'Oversize xudi «Standard»',
+    title: 'ONE23 Essential oversize xudi',
     subtitle: 'HEAVY COTTON 420GSM',
     price: 429000,
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
@@ -167,7 +167,7 @@ const products = [
     price: 790000,
     sizes: ['40', '41', '42', '43', '44'],
     description:
-      "Zamsh zamsh'dan tayyorlangan loafer. Yengil tagcharm, kundalik kiyish uchun qulay. Bichimi tor emas.",
+      'Yumshoq zamsh matodan tayyorlangan loafer. Yengil tagcharm, kundalik kiyish uchun qulay. Bichimi tor emas.',
     palette: ['#121010', '#2b2622', '#c2b39c'],
   },
 ]
