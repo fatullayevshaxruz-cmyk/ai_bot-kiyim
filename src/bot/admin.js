@@ -52,7 +52,7 @@ const parsePrice = (text) => {
 function panelText() {
   const s = stats()
   return [
-    '⚙️ <b>ONE23 — Admin panel</b>',
+    '⚙️ <b>Standart Uzbekistan — Admin panel</b>',
     '',
     `🆕 Yangi buyurtmalar: <b>${s.newOrders}</b>`,
     `📅 Bugun: ${s.today.orders} buyurtma · ${money(s.today.revenue)}`,

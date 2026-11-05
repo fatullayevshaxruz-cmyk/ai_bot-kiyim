@@ -25,7 +25,7 @@ function cover({ title, subtitle, palette, variant = 0 }) {
   <circle cx="${cx}" cy="${cy}" r="252" fill="none" stroke="${accent}" stroke-opacity="0.34" stroke-width="1.5" />
   <circle cx="${cx}" cy="${cy}" r="186" fill="none" stroke="${accent}" stroke-opacity="0.18" stroke-width="1" />
   <rect x="56" y="56" width="788" height="1088" fill="none" stroke="${accent}" stroke-opacity="0.2" />
-  <text x="450" y="150" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="24" letter-spacing="9" fill="${accent}">ONE23</text>
+  <text x="450" y="150" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="24" letter-spacing="9" fill="${accent}">STANDART UZBEKISTAN</text>
   <text x="450" y="965" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="46" fill="#f6f2ea">${escapeXml(title)}</text>
   <text x="450" y="1022" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="21" letter-spacing="5" fill="#cfc6b6">${escapeXml(subtitle)}</text>
   <line x1="380" y1="1058" x2="520" y2="1058" stroke="${accent}" stroke-opacity="0.5" />
@@ -79,7 +79,7 @@ const products = [
   },
   {
     category: 'knitwear',
-    title: 'ONE23 Essential oversize xudi',
+    title: 'Standart Essential oversize xudi',
     subtitle: 'HEAVY COTTON 420GSM',
     price: 429000,
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],

@@ -22,12 +22,12 @@ function welcomeText(firstName, fromInstagram) {
   const name = firstName ? `, ${firstName}` : ''
   const intro = fromInstagram
     ? '📸 <b>Instagram</b>dan keldingiz — to‘g‘ri joydasiz!'
-    : '✦ <b>ONE23</b> — o‘z uslubingni tanla'
+    : '✦ <b>STANDART UZBEKISTAN</b>'
   return [
     intro,
     '',
     `Assalomu alaykum${name}! 👋`,
-    'Erkaklar uchun premium kolleksiya endi Telegram ichida.',
+    'Sifatli erkaklar kiyimlari kolleksiyasi endi Telegram ichida.',
     '',
     '🛍 Katalogdan model va o‘lchamni tanlang',
     '🛒 Savatchaga qo‘shing',

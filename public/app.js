@@ -1,4 +1,4 @@
-/* ONE23 — Telegram Mini App */
+/* Standart Uzbekistan — Telegram Mini App */
 const tg = window.Telegram?.WebApp ?? null
 if (tg) {
   try {

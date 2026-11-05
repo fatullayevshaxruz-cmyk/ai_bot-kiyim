@@ -51,7 +51,7 @@ const settingsPayload = () => ({
     payme: paymeReady,
     cod: true,
   },
-  brand: { name: 'ONE23' },
+  brand: { name: 'Standart Uzbekistan', handle: '@standartuzbekistan' },
 })
 
 const orderRateLimit = new Map()

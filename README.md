@@ -1,6 +1,6 @@
-# ONE23 — Telegram Mini App do‘kon boti
+# Standart Uzbekistan — Telegram Mini App do‘kon boti
 
-ONE23 brendi uchun matnsiz, tugmalar bilan ishlaydigan
+Standart Uzbekistan brendi uchun matnsiz, tugmalar bilan ishlaydigan
 to‘liq e-komersiya boti: Telegram **Web App** ichida katalog, mahsulot galereyasi,
 o‘lcham tanlash, savatcha, 4 qadamli checkout, buyurtmalar tarixi, admin panel va
 kanalga avtomatik buyurtma yuborish.
@@ -34,7 +34,7 @@ Instagram bio ──► Telegram bot havolasi (`BOT_USERNAME`)
 ```bash
 npm install
 cp .env.example .env      # qiymatlarni to‘ldiring
-npm run seed              # 7 kategoriya, 12 demo mahsulot + ONE23 muqovalar
+npm run seed              # 7 kategoriya, demo mahsulotlar + brend muqovalar
 npm start                 # bot polling + web server (port 8080)
 ```
 
@@ -214,13 +214,13 @@ Bu rejim real-time emas — yangi postlar uchun buyruqni qayta ishga tushirish k
 git clone <repo> && cd ai_bot-kiyim && npm ci --omit=dev && npm run seed
 # 2) systemd
 [Unit]
-Description=ONE23 shop bot
+Description=Standart Uzbekistan shop bot
 After=network.target
 [Service]
-WorkingDirectory=/opt/one23-shop
+WorkingDirectory=/opt/standart-shop
 ExecStart=/usr/bin/node src/index.js
 Restart=always
-EnvironmentFile=/opt/one23-shop/.env
+EnvironmentFile=/opt/standart-shop/.env
 [Install]
 WantedBy=multi-user.target
 # 3) Caddy bilan HTTPS
@@ -229,7 +229,7 @@ shop.example.uz {
 }
 ```
 
-Yoki `pm2 start src/index.js --name one23-shop`.
+Yoki `pm2 start src/index.js --name standart-shop`.
 
 ## 10. Xavfsizlik
 

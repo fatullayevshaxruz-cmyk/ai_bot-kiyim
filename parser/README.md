@@ -1,4 +1,4 @@
-# Kanal parseri — ONE23 katalogi
+# Kanal parseri — Standart Uzbekistan katalogi
 
 Telegram kanaldagi postlarni (rasm/video + caption) o‘qib, mahsulot kartochkasini yaratadi va
 botning bazasiga (`data/shop.db`) yozadi. Web App katalogi yangi mahsulotni **avtomatik** ko‘rsatadi —
@@ -44,7 +44,7 @@ python -m parser login
 ```
 
 Telefon raqami, Telegram kodi (va bo‘lsa 2FA paroli) so‘raladi. Shundan keyin
-`parser/data/one23.session` yaratiladi — bu **akkaunt kaliti**, uni ham saqlang.
+`parser/data/standart.session` yaratiladi — bu **akkaunt kaliti**, uni ham saqlang.
 
 ## 4. Ishlatish
 
@@ -102,14 +102,14 @@ Doimiy ishlashi uchun systemd:
 
 ```ini
 [Unit]
-Description=ONE23 shop kanal parseri
+Description=Standart Uzbekistan shop kanal parseri
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/one23-shop
-ExecStart=/opt/one23-shop/.venv/bin/python -m parser watch
+WorkingDirectory=/opt/standart-shop
+ExecStart=/opt/standart-shop/.venv/bin/python -m parser watch
 Restart=always
-EnvironmentFile=/opt/one23-shop/parser/.env
+EnvironmentFile=/opt/standart-shop/parser/.env
 
 [Install]
 WantedBy=multi-user.target

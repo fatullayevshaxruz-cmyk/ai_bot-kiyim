@@ -1,9 +1,9 @@
 {
-  "name": "one23-menswear-shop-bot",
+  "name": "standart-uzbekistan-shop-bot",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ONE23 — Telegram Mini App premium menswear shop (catalog, cart, checkout, admin)",
+  "description": "Standart Uzbekistan — Telegram Mini App menswear shop (catalog, cart, checkout, admin)",
   "engines": {
     "node": ">=22.5"
   },
